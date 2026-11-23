@@ -7,6 +7,7 @@
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../../users/users.service';
 import { RedisService } from '../../redis/redis.service';
+import { GqlContextType, GqlExecutionContext } from '@nestjs/graphql';
 
 @Injectable()
 export class AccessTokenGuard implements CanActivate {
@@ -17,7 +18,10 @@ export class AccessTokenGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext) {
-    const request = context.switchToHttp().getRequest();
+    const request =
+      context.getType<GqlContextType>() === 'graphql'
+        ? GqlExecutionContext.create(context).getContext().req
+        : context.switchToHttp().getRequest();
     const [scheme, token] = (request.headers.authorization ?? '').split(' ');
     if (scheme !== 'Bearer' || !token)
       throw new UnauthorizedException('Bearer access token required');
@@ -28,7 +32,7 @@ export class AccessTokenGuard implements CanActivate {
       if (payload.type !== 'access' || !payload.sub || !payload.sid)
         throw new Error('Invalid token type');
       // Access tokens stop working as soon as logout deletes this session from Redis.
-      if (!(await this.redis.client.exists(`keke:auth:refresh:${payload.sid}`)))
+      if (!(await this.redis.hasSession(payload.sid)))
         throw new Error('Session revoked');
       const user = await this.users.findActiveById(payload.sub);
       if (!user) throw new Error('User is inactive or missing');

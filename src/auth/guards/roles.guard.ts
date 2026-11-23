@@ -7,6 +7,7 @@
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { UserRole } from '../../roles/user-role.enum';
+import { GqlContextType, GqlExecutionContext } from '@nestjs/graphql';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -18,7 +19,10 @@ export class RolesGuard implements CanActivate {
       context.getClass(),
     ]);
     if (!roles?.length) return true;
-    const request = context.switchToHttp().getRequest();
+    const request =
+      context.getType<GqlContextType>() === 'graphql'
+        ? GqlExecutionContext.create(context).getContext().req
+        : context.switchToHttp().getRequest();
     if (!roles.includes(request.user?.role?.name))
       throw new ForbiddenException('Your role cannot perform this action');
     return true;

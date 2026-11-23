@@ -7,18 +7,6 @@ import { RedisService } from '../redis/redis.service';
 import { UsersService } from '../users/users.service';
 import { User } from '../users/user.entity';
 
-const SWAP_SESSION = `
-  local current = redis.call('GET', KEYS[1])
-  if current ~= ARGV[1] then return 0 end
-  redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
-  return 1
-`;
-const DELETE_SESSION = `
-  local current = redis.call('GET', KEYS[1])
-  if current ~= ARGV[1] then return 0 end
-  return redis.call('DEL', KEYS[1])
-`;
-
 @Injectable()
 export class AuthService {
   constructor(
@@ -43,12 +31,8 @@ export class AuthService {
     const ttl = Number(
       this.config.get<string>('JWT_REFRESH_TTL_SECONDS') ?? 604800,
     );
-    await this.redis.client.set(
-      this.sessionKey(sessionId),
-      refreshId,
-      'EX',
-      ttl,
-    );
+    await this.redis.createSession(sessionId, refreshId, ttl);
+
     return this.tokens(user, sessionId, refreshId);
   }
 
@@ -77,15 +61,13 @@ export class AuthService {
       this.config.get<string>('JWT_REFRESH_TTL_SECONDS') ?? 604800,
     );
     const tokenPair = await this.tokens(user, payload.sid, nextId);
-    const swapped = await this.redis.client.eval(
-      SWAP_SESSION,
-      1,
-      this.sessionKey(payload.sid),
+    const swapped = await this.redis.rotateSession(
+      payload.sid,
       payload.jti,
       nextId,
-      String(ttl),
+      ttl,
     );
-    if (swapped !== 1)
+    if (!swapped)
       throw new UnauthorizedException(
         'Refresh token was already used or revoked',
       );
@@ -98,12 +80,7 @@ export class AuthService {
         secret: this.config.get('JWT_REFRESH_SECRET'),
       });
       if (payload.type === 'refresh' && payload.sid && payload.jti) {
-        await this.redis.client.eval(
-          DELETE_SESSION,
-          1,
-          this.sessionKey(payload.sid),
-          payload.jti,
-        );
+        await this.redis.revokeSession(payload.sid, payload.jti);
       }
     } catch {
       // Logout is idempotent: an expired or invalid token is already unusable.
@@ -140,9 +117,5 @@ export class AuthService {
       tokenType: 'Bearer',
       expiresIn: accessExpiresIn,
     };
-  }
-
-  private sessionKey(sessionId: string) {
-    return `keke:auth:refresh:${sessionId}`;
   }
 }
