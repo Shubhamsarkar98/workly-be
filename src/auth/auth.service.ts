@@ -28,47 +28,82 @@ export class AuthService {
     private readonly redis: RedisService,
   ) {}
 
-
   async login(email: string, password: string) {
     const user = await this.users.findForLogin(email);
-    if (!user || !user.active || !(await bcrypt.compare(password, user.passwordHash))) {
+    if (
+      !user ||
+      !user.active ||
+      !(await bcrypt.compare(password, user.passwordHash))
+    ) {
       // Same response for unknown email and wrong password avoids account enumeration.
       throw new UnauthorizedException('Email or password is incorrect');
     }
     const sessionId = randomUUID();
     const refreshId = randomUUID();
-    const ttl = Number(this.config.get<string>('JWT_REFRESH_TTL_SECONDS') ?? 604800);
-    await this.redis.client.set(this.sessionKey(sessionId), refreshId, 'EX', ttl);
+    const ttl = Number(
+      this.config.get<string>('JWT_REFRESH_TTL_SECONDS') ?? 604800,
+    );
+    await this.redis.client.set(
+      this.sessionKey(sessionId),
+      refreshId,
+      'EX',
+      ttl,
+    );
     return this.tokens(user, sessionId, refreshId);
   }
 
   async refresh(rawToken: string) {
     let payload: any;
     try {
-      payload = await this.jwt.verifyAsync(rawToken, { secret: this.config.get('JWT_REFRESH_SECRET') });
+      payload = await this.jwt.verifyAsync(rawToken, {
+        secret: this.config.get('JWT_REFRESH_SECRET'),
+      });
     } catch {
       throw new UnauthorizedException('Refresh token is invalid or expired');
     }
-    if (payload.type !== 'refresh' || !payload.sub || !payload.sid || !payload.jti) {
+    if (
+      payload.type !== 'refresh' ||
+      !payload.sub ||
+      !payload.sid ||
+      !payload.jti
+    ) {
       throw new UnauthorizedException('Refresh token is invalid or expired');
     }
     const user = await this.users.findActiveById(payload.sub);
-    if (!user) throw new UnauthorizedException('Refresh token is invalid or expired');
+    if (!user)
+      throw new UnauthorizedException('Refresh token is invalid or expired');
     const nextId = randomUUID();
-    const ttl = Number(this.config.get<string>('JWT_REFRESH_TTL_SECONDS') ?? 604800);
+    const ttl = Number(
+      this.config.get<string>('JWT_REFRESH_TTL_SECONDS') ?? 604800,
+    );
     const tokenPair = await this.tokens(user, payload.sid, nextId);
     const swapped = await this.redis.client.eval(
-      SWAP_SESSION, 1, this.sessionKey(payload.sid), payload.jti, nextId, String(ttl),
+      SWAP_SESSION,
+      1,
+      this.sessionKey(payload.sid),
+      payload.jti,
+      nextId,
+      String(ttl),
     );
-    if (swapped !== 1) throw new UnauthorizedException('Refresh token was already used or revoked');
+    if (swapped !== 1)
+      throw new UnauthorizedException(
+        'Refresh token was already used or revoked',
+      );
     return tokenPair;
   }
 
   async logout(rawToken: string) {
     try {
-      const payload = await this.jwt.verifyAsync(rawToken, { secret: this.config.get('JWT_REFRESH_SECRET') });
+      const payload = await this.jwt.verifyAsync(rawToken, {
+        secret: this.config.get('JWT_REFRESH_SECRET'),
+      });
       if (payload.type === 'refresh' && payload.sid && payload.jti) {
-        await this.redis.client.eval(DELETE_SESSION, 1, this.sessionKey(payload.sid), payload.jti);
+        await this.redis.client.eval(
+          DELETE_SESSION,
+          1,
+          this.sessionKey(payload.sid),
+          payload.jti,
+        );
       }
     } catch {
       // Logout is idempotent: an expired or invalid token is already unusable.
@@ -80,20 +115,34 @@ export class AuthService {
     const accessSecret = this.config.get<string>('JWT_ACCESS_SECRET');
     const refreshSecret = this.config.get<string>('JWT_REFRESH_SECRET');
     const accessExpiresIn = this.config.get<string>('JWT_ACCESS_TTL', '15m');
-    const refreshTtl = Number(this.config.get<string>('JWT_REFRESH_TTL_SECONDS') ?? 604800);
+    const refreshTtl = Number(
+      this.config.get<string>('JWT_REFRESH_TTL_SECONDS') ?? 604800,
+    );
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwt.signAsync({ sub: user.id, email: user.email, role: user.role, sid: sessionId, type: 'access' },
-        { secret: accessSecret, expiresIn: accessExpiresIn as any }),
-      this.jwt.signAsync({ sub: user.id, sid: sessionId, jti: refreshId, type: 'refresh' },
-        { secret: refreshSecret, expiresIn: refreshTtl }),
+      this.jwt.signAsync(
+        {
+          sub: user.id,
+          email: user.email,
+          role: user.role.name,
+          sid: sessionId,
+          type: 'access',
+        },
+        { secret: accessSecret, expiresIn: accessExpiresIn as any },
+      ),
+      this.jwt.signAsync(
+        { sub: user.id, sid: sessionId, jti: refreshId, type: 'refresh' },
+        { secret: refreshSecret, expiresIn: refreshTtl },
+      ),
     ]);
-    return { accessToken, refreshToken, tokenType: 'Bearer', expiresIn: accessExpiresIn };
+    return {
+      accessToken,
+      refreshToken,
+      tokenType: 'Bearer',
+      expiresIn: accessExpiresIn,
+    };
   }
 
-  private sessionKey(sessionId: string) { return `keke:auth:refresh:${sessionId}`; }
+  private sessionKey(sessionId: string) {
+    return `keke:auth:refresh:${sessionId}`;
+  }
 }
-
-
-
-
-

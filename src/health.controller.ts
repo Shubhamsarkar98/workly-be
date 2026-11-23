@@ -1,7 +1,13 @@
 ﻿import { Controller, Get } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Health')
 @Controller('health')
 export class HealthController {
   @Get()
-  health() { return { status: 'ok' }; }
+  @ApiOperation({ summary: 'Check whether the API is running' })
+  @ApiOkResponse({ schema: { example: { status: 'ok' } } })
+  health() {
+    return { status: 'ok' };
+  }
 }

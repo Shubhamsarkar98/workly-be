@@ -1,11 +1,14 @@
-﻿import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-
-export enum UserRole {
-  ADMIN = 'ADMIN',
-  SUBADMIN = 'SUBADMIN',
-  EMPLOYER = 'EMPLOYER',
-  MANAGER = 'MANAGER',
-}
+﻿import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { Role } from '../roles/role.entity';
 
 @Entity({ name: 'users' })
 @Index('users_email_unique', ['email'], { unique: true })
@@ -20,8 +23,9 @@ export class User {
   @Column({ name: 'password_hash', type: 'varchar', select: false })
   passwordHash: string;
 
-  @Column({ type: 'enum', enum: UserRole, enumName: 'user_role' })
-  role: UserRole;
+  @ManyToOne(() => Role, { eager: true, nullable: false })
+  @JoinColumn({ name: 'role_id' })
+  role: Role;
 
   @Column({ default: true })
   active: boolean;

@@ -5,21 +5,35 @@ export class InitialAuthSchema1710000000000 implements MigrationInterface {
 
   async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
-    await queryRunner.query("CREATE TYPE user_role AS ENUM ('ADMIN', 'SUBADMIN', 'EMPLOYER', 'MANAGER')");
+    await queryRunner.query(`CREATE TABLE roles (
+      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+      name varchar(32) NOT NULL,
+      description varchar(160),
+      created_at timestamptz NOT NULL DEFAULT now(),
+      CONSTRAINT roles_name_unique UNIQUE (name),
+      CONSTRAINT roles_name_check CHECK (name IN ('ADMIN', 'SUBADMIN', 'EMPLOYER', 'MANAGER'))
+    )`);
+    await queryRunner.query(`INSERT INTO roles (name, description) VALUES
+      ('ADMIN', 'Full access and account provisioning'),
+      ('SUBADMIN', 'Secondary administrator role'),
+      ('EMPLOYER', 'Employer account'),
+      ('MANAGER', 'Manager account')`);
     await queryRunner.query(`CREATE TABLE users (
       id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
       email varchar(320) NOT NULL,
       password_hash varchar NOT NULL,
-      role user_role NOT NULL,
+      role_id uuid NOT NULL REFERENCES roles(id),
       active boolean NOT NULL DEFAULT true,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
     )`);
-    await queryRunner.query('CREATE UNIQUE INDEX users_email_unique ON users (email)');
+    await queryRunner.query(
+      'CREATE UNIQUE INDEX users_email_unique ON users (email)',
+    );
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query('DROP TABLE users');
-    await queryRunner.query('DROP TYPE user_role');
+    await queryRunner.query('DROP TABLE roles');
   }
 }

@@ -6,9 +6,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   readonly client: Redis;
 
   constructor() {
-    this.client = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', { lazyConnect: true, maxRetriesPerRequest: 2 });
+    this.client = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
+      lazyConnect: true,
+      maxRetriesPerRequest: 2,
+    });
   }
 
-  async onModuleInit() { await this.client.connect(); }
-  async onModuleDestroy() { await this.client.quit(); }
+  async onModuleInit() {
+    await this.client.connect();
+  }
+  async onModuleDestroy() {
+    await this.client.quit();
+  }
 }
