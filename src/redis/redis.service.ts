@@ -1,4 +1,4 @@
-﻿import {
+import {
   Injectable,
   Logger,
   OnModuleDestroy,
@@ -26,7 +26,7 @@ const REVOKE_SESSION = `
 export class RedisService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
   private readonly memorySessions = new Map<string, MemorySession>();
-  private mode: SessionMode;
+  private mode: SessionMode = 'redis';
   private cleanupTimer: NodeJS.Timeout | undefined;
   readonly client: Redis;
 

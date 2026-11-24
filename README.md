@@ -1,6 +1,6 @@
-# Keke backend â€” Phase 1
+# Keke backend - Phase 1
 
-Backend only: authentication, refresh sessions, user roles, and admin account provisioning. The API uses GraphQL at `/graphql`, PostgreSQL for users and roles, and Redis for refresh sessions.
+Backend only: authentication, refresh sessions, user roles, and admin account provisioning. The API uses GraphQL at `/graphql`, PostgreSQL for users and roles, and Redis for refresh sessions. Development can use an explicitly enabled in-memory session fallback.
 
 ## What you are learning
 
@@ -15,10 +15,10 @@ Backend only: authentication, refresh sessions, user roles, and admin account pr
 
 ## Run locally
 
-Requirements: Node.js 22+, npm, PostgreSQL, and a Redis server. PostgreSQL and Redis must be running separately from the NestJS application.
+Requirements: Node.js 22+, npm, PostgreSQL, and a Redis server for Redis-backed sessions.
 
-1. Copy `.env.example` to `.env`. Set the PostgreSQL username, password, and database name for your local PostgreSQL server. Set two different JWT secrets of at least 32 characters and a bootstrap admin password of 12â€“72 UTF-8 bytes.
-2. For Redis, set `REDIS_URL` to your running Redis service. For local development without Redis installed, set `REDIS_FALLBACK=memory`; this keeps sessions in process memory and clears them when the app restarts. The fallback is development-only; production requires Redis.
+1. Copy `.env.example` to `.env`. Set the PostgreSQL username, password, and database name. Set two different JWT secrets of at least 32 characters and a bootstrap admin password of 12-72 UTF-8 bytes.
+2. For Redis-backed sessions, set `REDIS_URL` to your Redis service. To develop without Redis installed, leave `REDIS_FALLBACK=memory`. This fallback is development-only, keeps sessions in process memory, and clears them when the app restarts. Production always requires Redis.
 3. Install packages with `npm install`.
 4. Create the tables with `npm run db:migrate`.
 5. Start the API with `npm run start:dev`.
@@ -90,14 +90,15 @@ New users cannot self-register. On first startup, the server creates an admin fr
 - `src/graphql/graphql.types.ts`: GraphQL inputs, outputs, and role enum.
 - `src/graphql/auth.resolver.ts`: login, refresh, logout, and current-user operations.
 - `src/users/users.resolver.ts`: admin-only account creation.
-- `src/auth/auth.service.ts`: token creation and Redis-backed refresh rotation.
-- `src/auth/guards/access-token.guard.ts`: validates access tokens for HTTP and GraphQL requests.
+- `src/auth/auth.service.ts`: token creation and session rotation.
+- `src/auth/guards/access-token.guard.ts`: validates access tokens for GraphQL requests.
 - `src/auth/guards/roles.guard.ts`: checks role metadata set with `@Roles(...)`.
 - `src/users/user.entity.ts`: user table model and role foreign key.
 - `src/roles/role.entity.ts`: role table model.
 - `src/database/migrations/1710000000000-InitialAuthSchema.ts`: creates users and roles, and seeds the four roles.
 - `src/config/environment.schema.ts`: environment variable validation.
 - `src/config/database.config.ts`: PostgreSQL connection settings.
+- `src/redis/redis.service.ts`: Redis sessions and the development-only memory fallback.
 - `src/main.ts`: app startup, request validation, and Swagger setup.
 
 ## Phase 1 boundaries

@@ -5,6 +5,7 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import type { Request, Response } from 'express';
 import { AuthModule } from './auth/auth.module';
 import { databaseOptions } from './config/database.config';
 import { environmentSchema } from './config/environment.schema';
@@ -31,7 +32,10 @@ import { GraphqlAwareThrottlerGuard } from './graphql/graphql-throttler.guard';
       autoSchemaFile: true,
       sortSchema: true,
       path: '/graphql',
-      context: ({ req, res }) => ({ req, res }),
+      context: ({ req, res }: { req: Request; res: Response }) => ({
+        req,
+        res,
+      }),
       graphiql: process.env.NODE_ENV !== 'production',
     }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),

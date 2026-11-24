@@ -1,4 +1,4 @@
-import * as Joi from 'joi';
+﻿import * as Joi from 'joi';
 
 export const environmentSchema = Joi.object({
   NODE_ENV: Joi.string()
@@ -19,7 +19,9 @@ export const environmentSchema = Joi.object({
     .min(32)
     .invalid(Joi.ref('JWT_ACCESS_SECRET'))
     .required(),
-  JWT_ACCESS_TTL: Joi.string().default('15m'),
+  JWT_ACCESS_TTL: Joi.string()
+    .pattern(/^[1-9]\d*(ms|s|m|h|d|w|y)$/)
+    .default('15m'),
   JWT_REFRESH_TTL_SECONDS: Joi.number().integer().min(60).default(604800),
   BOOTSTRAP_ADMIN_EMAIL: Joi.string().email().optional(),
   BOOTSTRAP_ADMIN_PASSWORD: Joi.string().min(12).optional(),

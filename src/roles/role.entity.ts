@@ -11,14 +11,14 @@ import { UserRole } from './user-role.enum';
 @Index('roles_name_unique', ['name'], { unique: true })
 export class Role {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ type: 'varchar', length: 32 })
-  name: UserRole;
+  name!: UserRole;
 
   @Column({ type: 'varchar', length: 160, nullable: true })
-  description: string | null;
+  description!: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt: Date;
+  createdAt!: Date;
 }
